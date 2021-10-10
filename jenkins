@@ -5,9 +5,20 @@ pipeline {
 		
         stage("Clone") {
             steps {
-				echo "*********Clone*********"
-                bat "git clone https://github.com/jahicm/spring-hibernate.git"
-				bat "mvn clean -f spring-hibernate"
+				script {
+                  if(fileExists ("spring-hibernate"))
+                  {
+                    bat "rmdir spring-hibernate /s /q"
+                    echo '""""""""""Cloning https://github.com/jahicm/spring-hibernate.git""""""""""'
+                    bat "git clone https://github.com/jahicm/spring-hibernate.git"
+                    bat "mvn clean -f spring-hibernate"
+                  }else
+                  {
+                    echo '""""""""""Cloning https://github.com/jahicm/spring-hibernate.git""""""""""'
+                    bat "git clone https://github.com/jahicm/spring-hibernate.git"
+                    bat "mvn clean -f spring-hibernate"
+                  }
+                }
             }
         }
 		 stage("Test") {
