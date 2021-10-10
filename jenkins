@@ -13,20 +13,20 @@ pipeline {
 		 stage("Test") {
             steps {
                 echo "*********Test*********"
-				bat "mvn test"
+				bat "mvn -file spring-hibernate/pom.xml test"
             }
         }
         stage("Build") {
             steps {
                 echo "*********Build*********"
-				bat "mvn compile install"
+				bat "mvn -file spring-hibernate/pom.xml compile install"
             }
         }
        
         stage("Deploy") {
             steps {
 				echo "*********Deploy*********"
-                bat "mvn package"
+                bat "mvn -file spring-hibernate/pom.xml package"
             }
         }
     }
