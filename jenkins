@@ -2,24 +2,31 @@ pipeline {
     agent any
 
     stages {
-        stage('Build') {
+		
+        stage("Clone") {
             steps {
-                echo 'Hello Build'
+				echo "*********Clone*********"
+                bat "git clone https://github.com/jahicm/spring-hibernate.git"
+				bat "mvn clean -f spring-hibernate"
             }
         }
-        stage('Deploy') {
+		 stage("Test") {
             steps {
-                echo 'Hello Deploy'
+                echo "*********Test*********"
+				bat "mvn test"
             }
         }
-        stage('Test') {
+        stage("Build") {
             steps {
-                echo 'Hello Test'
+                echo "*********Build*********"
+				bat "mvn compile install"
             }
         }
-        stage('Release') {
+       
+        stage("Deploy") {
             steps {
-                echo 'Hello Release'
+				echo "*********Deploy*********"
+                bat "mvn package"
             }
         }
     }
