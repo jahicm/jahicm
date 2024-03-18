@@ -1,0 +1,58 @@
+private CustomerAssociatedCardOrAccount createCustomerAssociatedCardOrAccountItem(ContactSearchEntity cust)  {
+
+		GetAccountDetailsInput getAccountDetailsInput= new GetAccountDetailsInput();
+		getAccountDetailsInput.setAccountId(cust.getAccountId());
+		InputHeader header = null;
+		CustomerAssociatedCardOrAccount custCardAccount = new CustomerAssociatedCardOrAccount();
+		try {
+			header = getSOAPHeader();
+		} catch (DatatypeConfigurationException e) {
+			throw new CBSSResponseException(e);
+		}
+		getAccountDetailsInput.setInputHeader(header);
+		CompletableFuture<GetAccountDetailsResponse> future = callWebServiceAsync(getAccountDetailsInput);
+		future.join();
+		future.thenAccept(response->{
+
+				Map<String, AccountEntityGenerated> accountsMap = updateAccountStatusAndReason(cust, response);
+
+				// Account Or Card Details
+				AccountOrCardDetails accountorCardDetails = getAccountOrCardDetails(cust);
+				accountorCardDetails.setFirstname(cust.getFirstName());
+				accountorCardDetails.setFamilyname(cust.getFamilyName());
+				accountorCardDetails.setDateOfBirth(cust.getBirthdate());
+				accountStatusRulesEngine.provideCardStatus(accountsMap,cust.getAccountId(),accountorCardDetails);
+				custCardAccount.addAccountOrCardDetailsListItem(accountorCardDetails);
+		});
+
+		return custCardAccount;
+	}
+	private CompletableFuture<GetAccountDetailsResponse> callWebServiceAsync(GetAccountDetailsInput getAccountDetailsInput)
+	{
+		return CompletableFuture.supplyAsync(()->{
+
+			return cbssAccountInformationClient.getAccountInformation(getAccountDetailsInput);
+	},executorService);
+	}
+	private Map<String, AccountEntityGenerated> updateAccountStatusAndReason(ContactSearchEntity cust, GetAccountDetailsResponse response ) {
+
+		Comparator<AccountEntityGenerated> cmp = (i1, i2) -> i1.getAccountLevel().compareTo(i2.getAccountLevel());
+		Map<String, AccountEntityGenerated> simulatedDAO = new HashMap<>();
+		List<BigInteger> accountLevels = new ArrayList<>();
+
+		AccountEntityGenerated shallowAccount = new AccountEntityGenerated();
+		shallowAccount.setAccountId(cust.getAccountId());
+		shallowAccount.setAccountLevel(response.getOutput().getAccountDetails().getAccountLevel()!= null?BigInteger.valueOf(response.getOutput().getAccountDetails().getAccountLevel()):null);
+		shallowAccount.setAccountAutoStatusCode(response.getOutput().getAccountDetails().getAccountAutomaticStatusCode()!=null?response.getOutput().getAccountDetails().getAccountAutomaticStatusCode().getCode():null);
+		shallowAccount.setAccountManualStatusCode(response.getOutput().getAccountDetails().getAccountManualStatusCode()!=null?response.getOutput().getAccountDetails().getAccountManualStatusCode().getCode():null);
+		accountLevels.add(response.getOutput().getAccountDetails().getAccountLevel() != null?BigInteger.valueOf(response.getOutput().getAccountDetails().getAccountLevel()):null);
+		simulatedDAO.put(cust.getAccountId(), shallowAccount);
+
+		Comparator<AccountEntityGenerated> byName = (AccountEntityGenerated obj1, AccountEntityGenerated obj2) -> obj1.getAccountLevel().compareTo(obj2.getAccountLevel());
+
+		LinkedHashMap<String, AccountEntityGenerated> sortedMap = simulatedDAO.entrySet().stream()
+				.sorted(Map.Entry.<String, AccountEntityGenerated>comparingByValue(byName))
+				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
+
+		return sortedMap;
+	}
